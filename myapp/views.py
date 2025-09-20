@@ -144,11 +144,9 @@ class CreateOrderView(View):
         order = Order.objects.create(
             user=request.user,
             total_amount=total,
-            status='pennding'
-        )
-        print(total)
+            status='pending'
+        ) 
 
-       
         cart_items.delete()
 
         return redirect('orders')  
@@ -169,8 +167,3 @@ class OrderDetailView(DetailView):
     model = Order
     template_name = 'order_detail.html'
     context_object_name = 'order'
-
-
-
-
-
