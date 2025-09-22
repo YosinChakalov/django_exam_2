@@ -71,13 +71,15 @@ def logout(request):
 class CreateProducts(CreateView):
     model = Products
     form_class = ProductForm
-    template_name='create_product.html'
+    template_name = 'create_product.html'
     success_url = reverse_lazy('home')
 
     def form_valid(self, form):
-        user_id=self.request.session.get('id')
-        form.instance.user_id=user_id
-        return super().form_valid(form) 
+        user_id = self.request.session.get('id')
+        if user_id is None:
+            return self.form_invalid(form)
+        form.instance.owner_id = user_id  
+        return super().form_valid(form)
 class ProductsViews(ListView):
     model = Products
     template_name = 'home.html'
@@ -87,9 +89,23 @@ class UpdateProducts(UpdateView):
     form_class = ProductForm
     template_name = 'update_product.html'
     success_url = reverse_lazy('home')
+
+    def get_queryset(self):
+        user_id = self.request.session.get('id')
+        return Products.objects.filter(owner_id=user_id)
+
 class DeleteProducts(DeleteView):
     model = Products
     success_url = reverse_lazy('home')
+
+    def dispatch(self, request, *args, **kwargs):
+        user_id = request.session.get('id')
+        obj = self.get_object()
+        if obj.owner_id != user_id:
+            return redirect('home')
+        return super().dispatch(request, *args, **kwargs)
+
+
 class DetailProducts(DetailView):
     model = Products
     template_name = 'detail_product.html'
@@ -114,16 +130,26 @@ class AddToCartView(View):
             return redirect('login')
 
         product = get_object_or_404(Products, pk=pk)
+        try:
+            quantity = int(request.POST.get('quantity', 1))
+        except ValueError:
+            quantity = 1
+        
+        if quantity < 1:
+            quantity = 1
+
         cart_item, created = Cart.objects.get_or_create(
             user=request.user,
             product=product,
+            defaults={'quantity': quantity}
         )
 
         if not created:
-            cart_item.quantity += 1
+            cart_item.quantity += quantity
             cart_item.save()
-        
+
         return redirect('cart')
+
     
 class RemoveFromCartView(View):
     def post(self, request, pk):
@@ -148,7 +174,7 @@ class CreateOrderView(View):
         ) 
 
         cart_items.delete()
-
+ 
         return redirect('orders')  
     
 
