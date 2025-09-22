@@ -90,9 +90,12 @@ class UpdateProducts(UpdateView):
     template_name = 'update_product.html'
     success_url = reverse_lazy('home')
 
-    def get_queryset(self):
-        user_id = self.request.session.get('id')
-        return Products.objects.filter(owner_id=user_id)
+    def dispatch(self, request, *args, **kwargs):
+        user_id = request.session.get('id')
+        obj = self.get_object()
+        if obj.owner_id != user_id:
+            return redirect('home')
+        return super().dispatch(request, *args, **kwargs)
 
 class DeleteProducts(DeleteView):
     model = Products
